@@ -1,19 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Trophy, Utensils, MapPin, Star, Heart, ChevronRight, Plus, X, Check, Sun, Moon, Sparkles, Flame, Globe, Camera, Award, ChefHat, CheckCircle2, Circle, Trash2, ArrowLeft, Gift, Compass, Coffee, Pizza, Plane, Mountain, Music, Palette, ShoppingBag } from "lucide-react";
-
-// ─── STORAGE HELPERS (localStorage) ───
-const STORAGE_KEY = "pj-adventures";
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-function saveData(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-}
+import { Trophy, Utensils, MapPin, Star, Heart, ChevronRight, Plus, X, Check, Sun, Moon, Sparkles, Flame, Globe, Camera, Award, ChefHat, CheckCircle2, Circle, Trash2, ArrowLeft, Gift, Compass, Coffee, Pizza, Plane, Mountain, Music, Palette, ShoppingBag, LogOut } from "lucide-react";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import Login from "./Login";
 
 // ─── QUEST DEFINITIONS ───
 const QUEST_TEMPLATES = [
@@ -85,18 +75,42 @@ export default function App() {
   const [subView, setSubView] = useState(null);
   const [showNewBadge, setShowNewBadge] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Load data from localStorage on mount
+  // Listen to auth state
   useEffect(() => {
-    const saved = loadData();
-    if (saved) setData(saved);
-    setLoaded(true);
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return unsub;
   }, []);
 
-  // Save helper
+  // Load data from Firestore (real-time sync)
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, "shared", "adventure-data"), (snap) => {
+      if (snap.exists()) {
+        setData(snap.data());
+      } else {
+        // One-time migration from localStorage
+        const local = localStorage.getItem("pj-adventures");
+        if (local) {
+          const parsed = JSON.parse(local);
+          setDoc(doc(db, "shared", "adventure-data"), parsed);
+          setData(parsed);
+        }
+      }
+      setLoaded(true);
+    });
+    return unsub;
+  }, [user]);
+
+  // Save helper — writes to Firestore
   const save = useCallback((newData) => {
     setData(newData);
-    saveData(newData);
+    setDoc(doc(db, "shared", "adventure-data"), newData);
   }, []);
 
   // Stats for badges
@@ -126,7 +140,7 @@ export default function App() {
   const level = Math.floor(data.points / 100) + 1;
   const levelProgress = (data.points % 100);
 
-  if (!loaded) return (
+  if (authLoading || (!loaded && user)) return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50">
       <div className="animate-pulse flex flex-col items-center gap-3">
         <Heart className="w-8 h-8 text-rose-400" />
@@ -134,6 +148,8 @@ export default function App() {
       </div>
     </div>
   );
+
+  if (!user) return <Login />;
 
   const tabs = [
     { id: "home", label: "Home", icon: Heart },
@@ -173,9 +189,14 @@ export default function App() {
                 <h1 className="font-display text-lg font-semibold tracking-tight">Peter & Jess</h1>
               </div>
             )}
-            <button onClick={() => setDark(!dark)} className="p-2 rounded-full hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setDark(!dark)} className="p-2 rounded-full hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
+                {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+              <button onClick={() => signOut(auth)} className="p-2 rounded-full hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors" title="Sign Out">
+                <LogOut className="w-4 h-4 text-stone-400" />
+              </button>
+            </div>
           </div>
         </header>
 
