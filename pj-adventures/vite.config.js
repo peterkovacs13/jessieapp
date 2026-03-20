@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.svg', 'icon-512.svg'],
+      includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
         name: "Peter & Jess's Adventures",
         short_name: 'PJ Adventures',
@@ -19,15 +19,15 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'icon-192.svg',
+            src: 'icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'icon-512.svg',
+            src: 'icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]
